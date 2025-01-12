@@ -1,7 +1,6 @@
-package main
+//go:generate go run ../actorgen/ example.go
 
-//go:generate go run . example.go
-//go:generate gofmt -w .
+package main
 
 type Player struct {
 	HP int

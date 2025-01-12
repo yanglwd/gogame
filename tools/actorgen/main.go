@@ -16,7 +16,7 @@ func main() {
 	inputDir := filepath.Dir(os.Args[1])
 	outputName := strings.TrimSuffix(inputBase, ".go") + "_gen.go"
 
-	tokenInfo := &TokenInfo{}
+	tokenInfo := &FileInfo{}
 	tokenInfo.inputFile = os.Args[1]
 	tokenInfo.outputFile = inputDir + "/" + outputName
 

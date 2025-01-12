@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func generate(tokenInfo *TokenInfo) error {
+func generate(tokenInfo *FileInfo) error {
 	os.Remove(tokenInfo.outputFile)
 
 	f, err := os.Create(tokenInfo.outputFile)
@@ -69,13 +69,17 @@ func generate(tokenInfo *TokenInfo) error {
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)
 
-	for _, token := range tokenInfo.tokens {
-		fmt.Fprintf(&buf, "func (a *Actor) %s() {", token)
+	for _, info := range tokenInfo.tokens {
+		fmt.Fprintf(&buf, "func (a *Actor) %s() %s {", info.token, info.ret)
 		fmt.Fprintln(&buf, "m := make(chan interface{})")
 		fmt.Fprintln(&buf, "a.mailbox <- m")
 		fmt.Fprintln(&buf, "<-m")
 		fmt.Fprintln(&buf, "close(m)")
-		fmt.Fprintf(&buf, "a.p.%s()", token)
+		if len(info.ret) > 0 {
+			fmt.Fprintf(&buf, "return a.p.%s()", info.token)
+		} else {
+			fmt.Fprintf(&buf, "a.p.%s()", info.token)
+		}
 		fmt.Fprintln(&buf, "}")
 		fmt.Fprintln(&buf)
 	}

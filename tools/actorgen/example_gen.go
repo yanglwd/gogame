@@ -53,10 +53,10 @@ func (a *Actor) Attack() {
 	a.p.Attack()
 }
 
-func (a *Actor) Heal() {
+func (a *Actor) Heal() bool {
 	m := make(chan interface{})
 	a.mailbox <- m
 	<-m
 	close(m)
-	a.p.Heal()
+	return a.p.Heal()
 }

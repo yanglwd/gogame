@@ -11,6 +11,7 @@ func (p *Player) Attack() {
 	p.HP -= 10
 }
 
-func (p *Player) Heal() {
+func (p *Player) Heal() bool {
 	p.HP += 10
+	return true
 }

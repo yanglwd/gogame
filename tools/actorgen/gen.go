@@ -24,12 +24,12 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf, "import \"context\"")
 
 	// body
-
 	fmt.Fprintln(&buf, "func NewActor(p *", tokenInfo.structName, ")*Actor {")
 	fmt.Fprintln(&buf, "ctx, cancel := context.WithCancel(context.Background())")
 	fmt.Fprintln(&buf, "return &Actor{")
 	fmt.Fprintln(&buf, "p : p,")
-	fmt.Fprintln(&buf, "mailbox: make(chan chan interface{}),")
+	fmt.Fprintf(&buf, "mailbox: make(chan chan interface{}, %s),", os.Args[2])
+	fmt.Fprintln(&buf)
 	fmt.Fprintln(&buf, "ctx: ctx,")
 	fmt.Fprintln(&buf, "cancel: cancel,")
 	fmt.Fprintln(&buf, "join: make(chan interface{}),")

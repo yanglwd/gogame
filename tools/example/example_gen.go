@@ -8,7 +8,7 @@ func NewActor(p *Player) *Actor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Actor{
 		p:       p,
-		mailbox: make(chan chan interface{}),
+		mailbox: make(chan chan interface{}, 256),
 		ctx:     ctx,
 		cancel:  cancel,
 		join:    make(chan interface{}),

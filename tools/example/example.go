@@ -1,4 +1,4 @@
-//go:generate go run ../actorgen/ example.go
+//go:generate go run ../actorgen/ example.go 256
 
 package main
 

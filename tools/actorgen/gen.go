@@ -47,6 +47,9 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf, "ctx context.Context")
 	fmt.Fprintln(&buf, "cancel context.CancelFunc")
 	fmt.Fprintln(&buf, "join chan struct{}")
+	if options.Debug {
+		fmt.Fprintln(&buf, "checkInTime time.Time")
+	}
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)
 
@@ -66,6 +69,9 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf, "m <- struct{}{} // checkIn()")
 	fmt.Fprintln(&buf, "select {")
 	fmt.Fprintln(&buf, "case <-m: // checkOut()")
+	if options.Debug {
+		fmt.Fprintln(&buf, "fmt.Println(a.p.ID(), \" checkIn cost:\", time.Since(a.checkInTime))")
+	}
 	fmt.Fprintf(&buf, "case <-time.After(time.Duration(%d) * time.Millisecond):", options.Timeout)
 	if options.Debug {
 		fmt.Fprintln(&buf, "fmt.Println(a.p.ID(), \" checkOut timeout\")")
@@ -73,8 +79,15 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "}")
-	fmt.Fprintln(&buf, "for m := range a.mailbox {")
-	fmt.Fprintln(&buf, "m<-struct{}{}")
+	fmt.Fprintln(&buf, "cleanLoop:")
+	fmt.Fprintln(&buf, "for {")
+	fmt.Fprintln(&buf, "select {")
+	fmt.Fprintln(&buf, "case ch:= <-a.mailbox:")
+	fmt.Fprintln(&buf, "fmt.Println(a.p.ID(), \" clean mailbox\")")
+	fmt.Fprintln(&buf, "ch <- struct{}{}")
+	fmt.Fprintln(&buf, "default:")
+	fmt.Fprintln(&buf, "break cleanLoop")
+	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "close(a.join) ")
 	fmt.Fprintln(&buf, "}")
@@ -87,7 +100,7 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf)
 	// checkIn
 	fmt.Fprintln(&buf, "func (a *Actor) checkIn() (chan struct{}, bool) {")
-	fmt.Fprintln(&buf, "m := make(chan struct{}, 2)")
+	fmt.Fprintln(&buf, "m := make(chan struct{}, 4)")
 	fmt.Fprintln(&buf, "select {")
 	fmt.Fprintln(&buf, "case a.mailbox <- m:")
 	fmt.Fprintln(&buf, "default:")
@@ -96,6 +109,9 @@ func generate(tokenInfo *FileInfo) error {
 	}
 	fmt.Fprintf(&buf, "return nil, false")
 	fmt.Fprintln(&buf, "}")
+	if options.Debug {
+		fmt.Fprintln(&buf, "a.checkInTime = time.Now()")
+	}
 	fmt.Fprintln(&buf, "select {")
 	fmt.Fprintln(&buf, "case <-m:")
 	fmt.Fprintln(&buf, "return m, true")
@@ -109,6 +125,9 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf)
 	// checkOut
 	fmt.Fprintln(&buf, "func (a *Actor) checkOut(m chan struct{}) {")
+	if options.Debug {
+		fmt.Fprintln(&buf, "fmt.Println(a.p.ID(), \" checkOut cost:\", time.Since(a.checkInTime))")
+	}
 	fmt.Fprintln(&buf, "m <- struct{}{}")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)

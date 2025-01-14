@@ -2,24 +2,24 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 )
 
 const (
-	ActorNum    = 1000
-	LoopNum     = 100
-	InteractNum = 10
+	ActorNum    = 100000
+	LoopNum     = 1
+	InteractNum = 100
 )
 
 func main() {
 	// ch := make(chan int, 100)
-	// close(ch)
+	// go func() {
+	// 	close(ch)
+	// }()
 	// <-ch
 	// fmt.Println("ch closed")
 	// time.Sleep(10 * time.Second)
-
 	actors := make([]*Actor, ActorNum)
 	for i := range ActorNum {
 		actors[i] = NewActor(NewPlayer(i))
@@ -39,12 +39,8 @@ func main() {
 					target := actors[(i+j)%ActorNum]
 					target.Attack()
 					target.Heal()
-					if cost := time.Since(tmp); cost > 100*time.Millisecond {
-						fmt.Println("actor", i, "interact with actor", (i+j)%ActorNum, "cost:", cost)
-					}
+					fmt.Println("actor", i, "interact with actor", (i+j)%ActorNum, "cost:", time.Since(tmp))
 				}
-				sec := rand.Int31n(10)
-				time.Sleep(time.Duration(sec) * time.Second)
 			}
 		}()
 	}

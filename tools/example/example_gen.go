@@ -42,12 +42,18 @@ runLoop:
 			select {
 			case <-m: // checkOut()
 			case <-time.After(time.Duration(1000) * time.Millisecond):
-				fmt.Println(a.p.ID(), " checkOut timeout")
 			}
 		}
 	}
-	for m := range a.mailbox {
-		m <- struct{}{}
+cleanLoop:
+	for {
+		select {
+		case ch := <-a.mailbox:
+			fmt.Println(a.p.ID(), " clean mailbox")
+			ch <- struct{}{}
+		default:
+			break cleanLoop
+		}
 	}
 	close(a.join)
 }
@@ -58,18 +64,16 @@ func (a *Actor) Stop() {
 }
 
 func (a *Actor) checkIn() (chan struct{}, bool) {
-	m := make(chan struct{}, 2)
+	m := make(chan struct{}, 4)
 	select {
 	case a.mailbox <- m:
 	default:
-		fmt.Println(a.p.ID(), " checkIn mailbox full")
 		return nil, false
 	}
 	select {
 	case <-m:
 		return m, true
 	case <-time.After(time.Duration(1000) * time.Millisecond):
-		fmt.Println(a.p.ID(), " checkIn timeout")
 		return nil, false
 	}
 }

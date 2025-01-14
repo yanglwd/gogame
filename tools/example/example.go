@@ -1,4 +1,4 @@
-//go:generate go run ../actorgen/ example.go 256
+//go:generate go run ../actorgen/ -input example.go -channel 256 -timeout 1000
 
 package main
 

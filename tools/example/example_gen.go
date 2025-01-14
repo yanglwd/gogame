@@ -2,25 +2,28 @@
 
 package main
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 func NewActor(p *Player) *Actor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Actor{
 		p:       p,
-		mailbox: make(chan chan interface{}, 256),
+		mailbox: make(chan chan struct{}, 256),
 		ctx:     ctx,
 		cancel:  cancel,
-		join:    make(chan interface{}),
+		join:    make(chan struct{}),
 	}
 }
 
 type Actor struct {
 	p       *Player
-	mailbox chan chan interface{}
+	mailbox chan chan struct{}
 	ctx     context.Context
 	cancel  context.CancelFunc
-	join    chan interface{}
+	join    chan struct{}
 }
 
 func (a *Actor) Start() {
@@ -32,12 +35,15 @@ runLoop:
 	for {
 		select {
 		case <-a.ctx.Done():
-			close(a.join)
 			break runLoop
 		case m := <-a.mailbox:
-			m <- struct{}{}
+			close(m)
 		}
 	}
+	for m := range a.mailbox {
+		close(m)
+	}
+	close(a.join)
 }
 
 func (a *Actor) Stop() {
@@ -46,17 +52,29 @@ func (a *Actor) Stop() {
 }
 
 func (a *Actor) Attack() {
-	m := make(chan interface{})
-	a.mailbox <- m
+	m := make(chan struct{})
+	select {
+	case a.mailbox <- m:
+	case <-time.After(time.Duration(1000) * time.Millisecond):
+		return
+	default:
+		close(m)
+		return
+	}
 	<-m
-	close(m)
 	a.p.Attack()
 }
 
 func (a *Actor) Heal() bool {
-	m := make(chan interface{})
-	a.mailbox <- m
+	m := make(chan struct{})
+	select {
+	case a.mailbox <- m:
+	case <-time.After(time.Duration(1000) * time.Millisecond):
+		return false
+	default:
+		close(m)
+		return false
+	}
 	<-m
-	close(m)
 	return a.p.Heal()
 }

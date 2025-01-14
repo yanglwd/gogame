@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	ActorNum    = 100000
+	ActorNum    = 1000
 	LoopNum     = 100
 	InteractNum = 10
 )
@@ -22,7 +22,7 @@ func main() {
 
 	actors := make([]*Actor, ActorNum)
 	for i := range ActorNum {
-		actors[i] = NewActor(&Player{HP: 100})
+		actors[i] = NewActor(NewPlayer(i))
 		actors[i].Start()
 	}
 
@@ -33,7 +33,6 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fmt.Println("actor start loop:", i)
 			for range LoopNum {
 				for j := range InteractNum {
 					tmp := time.Now()

@@ -27,7 +27,7 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf, "\"context\"")
 	fmt.Fprintln(&buf, ")")
 
-	// body
+	// actor
 	fmt.Fprintln(&buf, "func NewActor(p *", tokenInfo.structName, ")*Actor {")
 	fmt.Fprintln(&buf, "ctx, cancel := context.WithCancel(context.Background())")
 	fmt.Fprintln(&buf, "return &Actor{")
@@ -50,10 +50,12 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)
 
+	// Start
 	fmt.Fprintln(&buf, "func (a *Actor) Start() {")
 	fmt.Fprintln(&buf, "go a.run()")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)
+	// run
 	fmt.Fprintln(&buf, "func (a *Actor) run() {")
 	fmt.Fprintln(&buf, "runLoop:")
 	fmt.Fprintln(&buf, "for {")
@@ -61,34 +63,66 @@ func generate(tokenInfo *FileInfo) error {
 	fmt.Fprintln(&buf, "case <-a.ctx.Done():")
 	fmt.Fprintln(&buf, "break runLoop")
 	fmt.Fprintln(&buf, "case m := <-a.mailbox:")
-	fmt.Fprintln(&buf, "close(m)")
+	fmt.Fprintln(&buf, "m <- struct{}{} // checkIn()")
+	fmt.Fprintln(&buf, "select {")
+	fmt.Fprintln(&buf, "case <-m: // checkOut()")
+	fmt.Fprintf(&buf, "case <-time.After(time.Duration(%d) * time.Millisecond):", options.Timeout)
+	if options.Debug {
+		fmt.Fprintln(&buf, "fmt.Println(a.p.ID(), \" checkOut timeout\")")
+	}
+	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "for m := range a.mailbox {")
-	fmt.Fprintln(&buf, "close(m)")
+	fmt.Fprintln(&buf, "m<-struct{}{}")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf, "close(a.join) ")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)
+	// Stop
 	fmt.Fprintln(&buf, "func (a *Actor) Stop() {")
 	fmt.Fprintln(&buf, "a.cancel()")
 	fmt.Fprintln(&buf, "<-a.join")
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)
+	// checkIn
+	fmt.Fprintln(&buf, "func (a *Actor) checkIn() (chan struct{}, bool) {")
+	fmt.Fprintln(&buf, "m := make(chan struct{}, 2)")
+	fmt.Fprintln(&buf, "select {")
+	fmt.Fprintln(&buf, "case a.mailbox <- m:")
+	fmt.Fprintln(&buf, "default:")
+	if options.Debug {
+		fmt.Fprintln(&buf, "fmt.Println(a.p.ID(), \" checkIn mailbox full\")")
+	}
+	fmt.Fprintf(&buf, "return nil, false")
+	fmt.Fprintln(&buf, "}")
+	fmt.Fprintln(&buf, "select {")
+	fmt.Fprintln(&buf, "case <-m:")
+	fmt.Fprintln(&buf, "return m, true")
+	fmt.Fprintf(&buf, "case <-time.After(time.Duration(%d) * time.Millisecond):", options.Timeout)
+	if options.Debug {
+		fmt.Fprintln(&buf, "fmt.Println(a.p.ID(), \" checkIn timeout\")")
+	}
+	fmt.Fprintln(&buf, "return nil, false")
+	fmt.Fprintln(&buf, "}")
+	fmt.Fprintln(&buf, "}")
+	fmt.Fprintln(&buf)
+	// checkOut
+	fmt.Fprintln(&buf, "func (a *Actor) checkOut(m chan struct{}) {")
+	fmt.Fprintln(&buf, "m <- struct{}{}")
+	fmt.Fprintln(&buf, "}")
+	fmt.Fprintln(&buf)
 
+	// generate method for each export function
 	for _, info := range tokenInfo.tokens {
 		rets := generateDefaultReturnValue(info.ret)
 		fmt.Fprintf(&buf, "func (a *Actor) %s() %s {", info.token, info.ret)
-		fmt.Fprintln(&buf, "m := make(chan struct{})")
-		fmt.Fprintln(&buf, "select {")
-		fmt.Fprintln(&buf, "case a.mailbox <- m:")
-		fmt.Fprintf(&buf, "case <-time.After(time.Duration(%d) * time.Millisecond):", options.Timeout)
-		fmt.Fprintln(&buf, "return", rets)
-		fmt.Fprintln(&buf, "default:")
-		fmt.Fprintln(&buf, "close(m)")
+		fmt.Fprintln(&buf, "m, ok := a.checkIn()")
+		fmt.Fprintln(&buf, "if !ok {")
 		fmt.Fprintf(&buf, "return %s", rets)
 		fmt.Fprintln(&buf, "}")
-		fmt.Fprintln(&buf, "<-m")
+		fmt.Fprintln(&buf, "defer a.checkOut(m)")
+		fmt.Fprintln(&buf)
 		if len(info.ret) > 0 {
 			fmt.Fprintf(&buf, "return a.p.%s()", info.token)
 		} else {

@@ -7,6 +7,7 @@ type GenerateOptions struct {
 	OutputFile string
 	ChannelNum int
 	Timeout    int
+	Debug      bool
 }
 
 var options GenerateOptions
@@ -16,4 +17,5 @@ func init() {
 	flag.StringVar(&options.OutputFile, "output", "", "output file")
 	flag.IntVar(&options.ChannelNum, "channel", 1024, "channel num")
 	flag.IntVar(&options.Timeout, "timeout", 1000, "timeout ms")
+	flag.BoolVar(&options.Debug, "debug", false, "debug")
 }

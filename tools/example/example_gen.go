@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -37,11 +38,16 @@ runLoop:
 		case <-a.ctx.Done():
 			break runLoop
 		case m := <-a.mailbox:
-			close(m)
+			m <- struct{}{} // checkIn()
+			select {
+			case <-m: // checkOut()
+			case <-time.After(time.Duration(1000) * time.Millisecond):
+				fmt.Println(a.p.ID(), " checkOut timeout")
+			}
 		}
 	}
 	for m := range a.mailbox {
-		close(m)
+		m <- struct{}{}
 	}
 	close(a.join)
 }
@@ -51,30 +57,53 @@ func (a *Actor) Stop() {
 	<-a.join
 }
 
-func (a *Actor) Attack() {
-	m := make(chan struct{})
+func (a *Actor) checkIn() (chan struct{}, bool) {
+	m := make(chan struct{}, 2)
 	select {
 	case a.mailbox <- m:
-	case <-time.After(time.Duration(1000) * time.Millisecond):
-		return
 	default:
-		close(m)
+		fmt.Println(a.p.ID(), " checkIn mailbox full")
+		return nil, false
+	}
+	select {
+	case <-m:
+		return m, true
+	case <-time.After(time.Duration(1000) * time.Millisecond):
+		fmt.Println(a.p.ID(), " checkIn timeout")
+		return nil, false
+	}
+}
+
+func (a *Actor) checkOut(m chan struct{}) {
+	m <- struct{}{}
+}
+
+func (a *Actor) ID() int {
+	m, ok := a.checkIn()
+	if !ok {
+		return 0
+	}
+	defer a.checkOut(m)
+
+	return a.p.ID()
+}
+
+func (a *Actor) Attack() {
+	m, ok := a.checkIn()
+	if !ok {
 		return
 	}
-	<-m
+	defer a.checkOut(m)
+
 	a.p.Attack()
 }
 
 func (a *Actor) Heal() bool {
-	m := make(chan struct{})
-	select {
-	case a.mailbox <- m:
-	case <-time.After(time.Duration(1000) * time.Millisecond):
-		return false
-	default:
-		close(m)
+	m, ok := a.checkIn()
+	if !ok {
 		return false
 	}
-	<-m
+	defer a.checkOut(m)
+
 	return a.p.Heal()
 }

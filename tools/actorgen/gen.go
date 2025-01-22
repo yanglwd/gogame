@@ -55,7 +55,11 @@ func generate(tokenInfo *FileInfo) error {
 
 	// Start
 	fmt.Fprintln(&buf, "func (a *Actor) Start() {")
-	fmt.Fprintln(&buf, "go a.run()")
+	if options.Async {
+		fmt.Fprintln(&buf, "go a.run()")
+	} else {
+		fmt.Fprintln(&buf, "a.run()")
+	}
 	fmt.Fprintln(&buf, "}")
 	fmt.Fprintln(&buf)
 	// run
